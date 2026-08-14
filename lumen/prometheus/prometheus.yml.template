@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'lumen-encoding'
+    static_configs:
+      - targets: ['host.docker.internal:9101']
+  - job_name: 'lumen-playback'
+    static_configs:
+      - targets: ['host.docker.internal:9102']
+  - job_name: 'lumen-ingest'
+    static_configs:
+      - targets: ['host.docker.internal:9103']
+  - job_name: 'lumen-recommendation'
+    static_configs:
+      - targets: ['host.docker.internal:9104']
+
+remote_write:
+  # Get these three values from Grafana Cloud Portal -> your stack ->
+  # Prometheus card -> "Send Metrics" / Details.
+  - url: https://REPLACE_WITH_YOUR_PROMETHEUS_REMOTE_WRITE_URL/api/prom/push
+    basic_auth:
+      username: REPLACE_WITH_YOUR_PROMETHEUS_INSTANCE_ID
+      password: REPLACE_WITH_A_CLOUD_ACCESS_POLICY_TOKEN_WITH_metrics:write

@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Continuity — Lumen Operations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c11;
+    --panel: #12151d;
+    --panel-2: #171b26;
+    --panel-3: #1d2230;
+    --border: #232838;
+    --border-soft: #1a1f2c;
+    --text: #eef0f5;
+    --muted: #7b8299;
+    --muted-2: #565c72;
+    --good: #34d399;
+    --bad: #f5576c;
+    --warn: #fbbf24;
+    --accent: #818cf8;
+    --accent-2: #6366f1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #161b2b 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #14192a 0%, transparent 55%),
+      var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+  }
+  header {
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px; color: #0a0c11;
+    box-shadow: 0 0 20px rgba(129,140,248,0.35);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  #overall-badge {
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+  }
+  #overall-badge .dot { width: 7px; height: 7px; border-radius: 50%; }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 18px;
+    padding: 18px 28px;
+    overflow: hidden;
+  }
+  .col { display: flex; flex-direction: column; gap: 18px; overflow: hidden; }
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .card {
+    background: linear-gradient(180deg, var(--panel-3) 0%, var(--panel) 100%);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s ease;
+  }
+  .card::before {
+    content: "";
+    position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--good);
+    transition: background 0.3s ease;
+  }
+  .card.bad::before { background: var(--bad); }
+  .card.bad { border-color: rgba(245,87,108,0.35); }
+  .card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .card .icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: var(--panel-2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  .card .name { font-size: 12.5px; color: var(--muted); font-weight: 500; margin-top: -2px; }
+  .status-pill {
+    font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 3px 9px; border-radius: 20px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .status-pill.good { color: var(--good); background: rgba(52,211,153,0.1); }
+  .status-pill.bad { color: var(--bad); background: rgba(245,87,108,0.12); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot.good { background: var(--good); box-shadow: 0 0 6px var(--good); }
+  .dot.bad { background: var(--bad); box-shadow: 0 0 6px var(--bad); animation: pulse 1.1s infinite; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  .card .metrics { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .metric-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .metric-row .label { font-size: 11.5px; color: var(--muted-2); }
+  .metric-row .value { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .metric-row .value.bad-text { color: var(--bad); }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .panel h2 {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 14px 0;
+    font-weight: 600;
+  }
+  .incident-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 9px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+  }
+  button:hover { border-color: var(--accent); background: var(--panel-3); transform: translateY(-1px); }
+  button.danger { }
+  button.danger:hover { border-color: var(--bad); }
+  button.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border: none; color: #0a0c11; font-weight: 600;
+  }
+  button.primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  #activity-log {
+    flex: 1;
+    overflow-y: auto;
+    font-size: 11.5px;
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  #activity-log .line { padding: 5px 0; border-bottom: 1px solid var(--border-soft); display: flex; gap: 8px; }
+  #activity-log .line .t { color: var(--muted-2); flex-shrink: 0; }
+  #activity-log .line.warn { color: var(--bad); }
+
+  #chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #stream-status {
+    font-size: 11.5px;
+    color: var(--accent);
+    min-height: 16px;
+    margin-bottom: 8px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+  }
+  #stream-status.active { display: flex; }
+  #stream-status .spin {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #chat-log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px; }
+  .msg { font-size: 13px; line-height: 1.55; display: flex; gap: 10px; }
+  .avatar {
+    width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; margin-top: 2px;
+  }
+  .msg.user .avatar { background: var(--panel-3); color: var(--accent); }
+  .msg.agent .avatar { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #0a0c11; }
+  .msg-body { flex: 1; min-width: 0; }
+  .msg .who { font-size: 10.5px; color: var(--muted-2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .msg.agent .bubble { background: var(--panel-2); padding: 11px 13px; border-radius: 10px; white-space: pre-wrap; border: 1px solid var(--border-soft); }
+  .msg.user .bubble { background: rgba(129,140,248,0.08); padding: 11px 13px; border-radius: 10px; white-space: pre-wrap; border: 1px solid rgba(129,140,248,0.15); }
+  .msg.agent.streaming .bubble::after {
+    content: "▋"; animation: blink 0.8s step-end infinite; color: var(--accent); margin-left: 1px;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Tool call chips — styled like ADK Web's own icon + name pills, not raw code blocks */
+  .tool-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px 5px 6px;
+    font-size: 12px;
+    margin: 2px 0;
+    max-width: 100%;
+  }
+  .tool-chip .icon-badge {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; flex-shrink: 0;
+    background: var(--panel-3);
+  }
+  .tool-chip.pending .icon-badge { background: var(--accent); color: #0a0c11; }
+  .tool-chip.pending .icon-badge .spinner {
+    width: 8px; height: 8px; border-radius: 50%;
+    border: 1.5px solid rgba(10,12,17,0.35);
+    border-top-color: #0a0c11;
+    animation: spin 0.6s linear infinite;
+  }
+  .tool-chip.done .icon-badge { background: rgba(52,211,153,0.15); color: var(--good); }
+  .tool-chip .tool-name { font-family: 'JetBrains Mono', Consolas, monospace; font-size: 11.5px; color: var(--text); }
+  .tool-chip .tool-name .args { color: var(--muted); }
+  .tool-chip-wrap { padding-left: 34px; }
+
+  #chat-input-row { display: flex; gap: 8px; margin-top: 14px; }
+  #chat-input {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 11px 14px; border-radius: 9px; font-size: 13px; font-family: inherit;
+  }
+  #chat-input:focus { outline: none; border-color: var(--accent); }
+  #chat-input:disabled { opacity: 0.6; }
+  #chat-log::-webkit-scrollbar, #activity-log::-webkit-scrollbar { width: 6px; }
+  #chat-log::-webkit-scrollbar-thumb, #activity-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">C</div>
+    <div>
+      <h1>Continuity</h1>
+      <div class="sub">Autonomous reliability agent for Lumen</div>
+    </div>
+  </div>
+  <div id="overall-badge"><span class="dot good"></span>All systems operational</div>
+</header>
+
+<main>
+  <div class="col">
+    <div class="cards" id="service-cards"></div>
+
+    <div class="panel">
+      <h2>Incident Controls</h2>
+      <div class="incident-buttons">
+        <button class="danger" onclick="triggerIncident('encoding_crash')">▸ Trigger Encoding Crash</button>
+        <button class="danger" onclick="triggerIncident('latency_spike')">▸ Trigger Latency Spike</button>
+        <button class="danger" onclick="triggerIncident('bad_deploy')">▸ Trigger Bad Deploy</button>
+        <button onclick="clearIncidents()">Clear All Incidents</button>
+      </div>
+    </div>
+
+    <div class="panel" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+      <h2>Activity Log</h2>
+      <div id="activity-log"></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel" id="chat-panel">
+      <h2>Ask Continuity</h2>
+      <div id="stream-status"><span class="spin"></span><span id="stream-status-text"></span></div>
+      <div id="chat-log"></div>
+      <div id="chat-input-row">
+        <input id="chat-input" placeholder="Ask Continuity to check Lumen's health…" onkeydown="if(event.key==='Enter' && !isStreaming) sendChat()">
+        <button id="send-btn" class="primary" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ---- Configuration: adjust these if your ports differ ----
+const LUMEN_URL = "http://localhost:9100";
+const ADK_URL = "http://localhost:8001";
+const APP_NAME = "continuity";
+const USER_ID = "dashboard-user";
+
+let sessionId = null;
+let isStreaming = false;
+let streamAbort = null;
+let currentStreamBubble = null;
+let sawPartialText = false;
+let pendingToolEls = new Map();
+
+let logEl = document.getElementById("activity-log");
+let chatLog = document.getElementById("chat-log");
+let streamStatusEl = document.getElementById("stream-status");
+let streamStatusTextEl = document.getElementById("stream-status-text");
+let sendBtn = document.getElementById("send-btn");
+let overallBadge = document.getElementById("overall-badge");
+
+function log(text, cls) {
+  const div = document.createElement("div");
+  div.className = "line" + (cls ? " " + cls : "");
+  const t = new Date().toLocaleTimeString();
+  div.innerHTML = `<span class="t">${t}</span><span>${text}</span>`;
+  logEl.prepend(div);
+}
+
+// ---------- Lumen status polling, with RATE-based health (not raw totals) ----------
+const SERVICE_META = {
+  ingestion: { label: "Video Ingestion", icon: "⬆" },
+  encoding: { label: "Video Encoding", icon: "⚙" },
+  playback: { label: "Playback API", icon: "▶" },
+  recommendation: { label: "Recommendation", icon: "★" },
+};
+
+// Track previous error totals so we compute a RATE (new errors/sec)
+// instead of judging health off a lifetime total, which only ever goes up
+// and would stay "red" forever after a single past incident.
+let prevCounts = {};
+let firstPoll = true;
+
+async function pollLumenStatus() {
+  try {
+    const res = await fetch(`${LUMEN_URL}/dashboard/status`);
+    const data = await res.json();
+    renderCards(data.services);
+  } catch (e) {
+    document.getElementById("service-cards").innerHTML =
+      `<div class="card bad" style="grid-column: span 2;"><div class="name">Lumen unreachable — is run_all.py running?</div></div>`;
+  }
+}
+
+function computeRate(key, currentTotal) {
+  const now = Date.now();
+  const prev = prevCounts[key];
+  prevCounts[key] = { value: currentTotal, time: now };
+  if (!prev) return 0;
+  const dt = (now - prev.time) / 1000;
+  const dv = currentTotal - prev.value;
+  if (dt <= 0) return 0;
+  return Math.max(0, dv / dt);
+}
+
+function renderCards(services) {
+  const container = document.getElementById("service-cards");
+  container.innerHTML = "";
+  let allHealthy = true;
+
+  for (const [key, meta] of Object.entries(SERVICE_META)) {
+    const svc = services[key] || {};
+    let healthy = true;
+    let metricsHtml = "";
+
+    if (key === "encoding") {
+      const workers = Math.round(svc.worker_pool_size ?? 0);
+      const queue = Math.round(svc.queue_depth ?? 0);
+      healthy = workers >= 10 && queue < 20;
+      metricsHtml = `
+        <div class="metric-row"><span class="label">Workers</span><span class="value ${workers < 10 ? "bad-text" : ""}">${workers}</span></div>
+        <div class="metric-row"><span class="label">Queue depth</span><span class="value ${queue >= 20 ? "bad-text" : ""}">${queue}</span></div>`;
+    } else if (key === "playback") {
+      const total5xx = svc.errors_5xx_total ?? 0;
+      const rate = computeRate("playback", total5xx);
+      healthy = firstPoll ? true : rate < 0.3;
+      metricsHtml = `
+        <div class="metric-row"><span class="label">5xx (new/sec)</span><span class="value ${!healthy ? "bad-text" : ""}">${rate.toFixed(2)}</span></div>
+        <div class="metric-row"><span class="label">5xx lifetime</span><span class="value" style="color:var(--muted-2); font-weight:500;">${Math.round(total5xx)}</span></div>`;
+    } else if (key === "recommendation") {
+      const total5xx = svc.errors_5xx_total ?? 0;
+      const rate = computeRate("recommendation", total5xx);
+      healthy = firstPoll ? true : rate < 0.3;
+      metricsHtml = `
+        <div class="metric-row"><span class="label">5xx (new/sec)</span><span class="value ${!healthy ? "bad-text" : ""}">${rate.toFixed(2)}</span></div>
+        <div class="metric-row"><span class="label">5xx lifetime</span><span class="value" style="color:var(--muted-2); font-weight:500;">${Math.round(total5xx)}</span></div>`;
+    } else if (key === "ingestion") {
+      const queue = Math.round(svc.queue_depth ?? 0);
+      healthy = true;
+      metricsHtml = `<div class="metric-row"><span class="label">Queue depth</span><span class="value">${queue}</span></div>`;
+    }
+
+    if (!healthy) allHealthy = false;
+
+    const card = document.createElement("div");
+    card.className = "card" + (healthy ? "" : " bad");
+    card.innerHTML = `
+      <div class="top-row">
+        <div>
+          <div class="icon">${meta.icon}</div>
+          <div class="name">${meta.label}</div>
+        </div>
+        <div class="status-pill ${healthy ? "good" : "bad"}">
+          <span class="dot ${healthy ? "good" : "bad"}"></span>${healthy ? "Healthy" : "Degraded"}
+        </div>
+      </div>
+      <div class="metrics">${metricsHtml}</div>
+    `;
+    container.appendChild(card);
+  }
+
+  firstPoll = false;
+  if (allHealthy) {
+    overallBadge.innerHTML = `<span class="dot good"></span>All systems operational`;
+  } else {
+    overallBadge.innerHTML = `<span class="dot bad"></span>Active incident detected`;
+  }
+}
+
+async function triggerIncident(name) {
+  await fetch(`${LUMEN_URL}/incidents/trigger`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  log(`⚠ Incident triggered: <b>${name}</b>`, "warn");
+}
+
+async function clearIncidents() {
+  await fetch(`${LUMEN_URL}/incidents/clear`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  log("✓ Incidents cleared");
+}
+
+setInterval(pollLumenStatus, 3000);
+pollLumenStatus();
+
+// ---------- Continuity chat (SSE streaming, ADK-Web-style tool chips) ----------
+function scrollChat() {
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function addMessage(who, text) {
+  const div = document.createElement("div");
+  div.className = "msg " + who;
+  const initial = who === "user" ? "U" : "C";
+  div.innerHTML = `<div class="avatar">${initial}</div><div class="msg-body"><div class="who">${who}</div><div class="bubble"></div></div>`;
+  div.querySelector(".bubble").textContent = text;
+  chatLog.appendChild(div);
+  scrollChat();
+  return div;
+}
+
+function createStreamingBubble() {
+  const div = document.createElement("div");
+  div.className = "msg agent streaming";
+  div.innerHTML = `<div class="avatar">C</div><div class="msg-body"><div class="who">agent</div><div class="bubble"></div></div>`;
+  chatLog.appendChild(div);
+  scrollChat();
+  return {
+    el: div,
+    bubble: div.querySelector(".bubble"),
+    appendText(text) { this.bubble.textContent += text; scrollChat(); },
+    finalize() { this.el.classList.remove("streaming"); },
+  };
+}
+
+// Friendlier tool call chip: icon badge + plain function name, args shown
+// small and muted rather than as a big JSON code block.
+function addToolCall(name, args, id) {
+  const argsStr = args && Object.keys(args).length
+    ? Object.entries(args).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ")
+    : "";
+  const wrap = document.createElement("div");
+  wrap.className = "tool-chip-wrap";
+  wrap.innerHTML = `
+    <div class="tool-chip pending">
+      <span class="icon-badge"><span class="spinner"></span></span>
+      <span class="tool-name">${name}<span class="args">${argsStr ? "(" + argsStr + ")" : "()"}</span></span>
+    </div>`;
+  chatLog.appendChild(wrap);
+  scrollChat();
+  if (id) pendingToolEls.set(id, wrap.querySelector(".tool-chip"));
+  log(`→ ${name}(${argsStr.slice(0, 80)}${argsStr.length > 80 ? "…" : ""})`);
+  return wrap;
+}
+
+function addToolResponse(name, response, id) {
+  const preview = JSON.stringify(response).slice(0, 200);
+  const pending = id ? pendingToolEls.get(id) : null;
+  if (pending) {
+    pending.classList.remove("pending");
+    pending.classList.add("done");
+    pending.querySelector(".icon-badge").innerHTML = "✓";
+    pendingToolEls.delete(id);
+  } else {
+    const wrap = document.createElement("div");
+    wrap.className = "tool-chip-wrap";
+    wrap.innerHTML = `
+      <div class="tool-chip done">
+        <span class="icon-badge">✓</span>
+        <span class="tool-name">${name}</span>
+      </div>`;
+    chatLog.appendChild(wrap);
+    scrollChat();
+  }
+  log(`✓ ${name} → ${preview.slice(0, 100)}${preview.length > 100 ? "…" : ""}`, "ok");
+}
+
+function setStreaming(active, label) {
+  isStreaming = active;
+  sendBtn.textContent = active ? "Stop" : "Send";
+  sendBtn.classList.toggle("danger", active);
+  sendBtn.classList.toggle("primary", !active);
+  streamStatusEl.classList.toggle("active", active);
+  streamStatusTextEl.textContent = active ? (label || "Continuity is working…") : "";
+  document.getElementById("chat-input").disabled = active;
+}
+
+function handleStreamEvent(event) {
+  if (event.error) {
+    addMessage("agent", `Error: ${event.error}`);
+    return;
+  }
+
+  const isPartial = !!event.partial;
+  const parts = event?.content?.parts || [];
+
+  for (const part of parts) {
+    if (part.text) {
+      if (isPartial) {
+        if (!currentStreamBubble) currentStreamBubble = createStreamingBubble();
+        currentStreamBubble.appendText(part.text);
+        sawPartialText = true;
+      } else if (!sawPartialText) {
+        addMessage("agent", part.text);
+      }
+    } else if (part.functionCall) {
+      if (isPartial) continue;
+      setStreaming(true, `Running ${part.functionCall.name}…`);
+      addToolCall(part.functionCall.name, part.functionCall.args, part.functionCall.id);
+      currentStreamBubble = null;
+      sawPartialText = false;
+    } else if (part.functionResponse) {
+      if (isPartial) continue;
+      setStreaming(true, "Continuity is working…");
+      addToolResponse(part.functionResponse.name, part.functionResponse.response, part.functionResponse.id);
+      currentStreamBubble = null;
+      sawPartialText = false;
+    }
+  }
+
+  if (!isPartial && currentStreamBubble) {
+    currentStreamBubble.finalize();
+    currentStreamBubble = null;
+    sawPartialText = false;
+  }
+}
+
+async function consumeSseStream(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      const payload = line.replace(/^data:\s*/, "").trim();
+      if (!payload) continue;
+      try { handleStreamEvent(JSON.parse(payload)); }
+      catch (e) { console.warn("SSE parse error:", e, payload); }
+    }
+  }
+  if (buffer.startsWith("data:")) {
+    const payload = buffer.replace(/^data:\s*/, "").trim();
+    if (payload) {
+      try { handleStreamEvent(JSON.parse(payload)); }
+      catch (e) { console.warn("SSE trailing parse error:", e); }
+    }
+  }
+}
+
+async function ensureSession() {
+  if (sessionId) return sessionId;
+  sessionId = "dash-" + Math.random().toString(36).slice(2, 10);
+  try {
+    await fetch(`${ADK_URL}/apps/${APP_NAME}/users/${USER_ID}/sessions/${sessionId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  } catch (e) {
+    addMessage("agent", "Could not create a session with Continuity. Is 'python run_web.py' running in the continuity folder? Error: " + e);
+  }
+  return sessionId;
+}
+
+async function sendChat() {
+  if (isStreaming) { streamAbort?.abort(); return; }
+
+  const input = document.getElementById("chat-input");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  addMessage("user", text);
+
+  await ensureSession();
+
+  currentStreamBubble = null;
+  sawPartialText = false;
+  pendingToolEls.clear();
+
+  const controller = new AbortController();
+  streamAbort = controller;
+  setStreaming(true, "Continuity is thinking…");
+
+  try {
+    const res = await fetch(`${ADK_URL}/run_sse`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({
+        app_name: APP_NAME,
+        user_id: USER_ID,
+        session_id: sessionId,
+        new_message: { role: "user", parts: [{ text }] },
+        streaming: true,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      addMessage("agent", `Request failed (HTTP ${res.status}): ${errText.slice(0, 500)}`);
+      return;
+    }
+
+    await consumeSseStream(res);
+    if (currentStreamBubble) { currentStreamBubble.finalize(); currentStreamBubble = null; }
+  } catch (e) {
+    if (e.name === "AbortError") {
+      if (currentStreamBubble) { currentStreamBubble.finalize(); currentStreamBubble = null; }
+      addMessage("agent", "(Stopped.)");
+      log("Continuity run cancelled");
+    } else {
+      addMessage("agent", "Could not reach Continuity's ADK server. Check the URL/port and CORS settings. Error: " + e);
+    }
+  } finally {
+    streamAbort = null;
+    setStreaming(false);
+    pollLumenStatus();
+  }
+}
+</script>
+
+</body>
+</html>
