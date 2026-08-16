@@ -7,11 +7,11 @@ from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnecti
 
 grafana = MCPToolset(
     connection_params=StreamableHTTPConnectionParams(
-        url="http://localhost:8000/mcp",
+        url="https://grafana-mcp-228250356285.us-central1.run.app/",
     )
 )
 
-LUMEN_CONTROL_URL = "http://localhost:9100"
+LUMEN_CONTROL_URL = "https://lumen-228250356285.us-central1.run.app"
 
 
 def get_lumen_triage_snapshot() -> dict:

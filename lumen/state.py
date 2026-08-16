@@ -14,6 +14,21 @@ class LumenState:
         self.incident_encoding_crash = False
         self.incident_latency_spike = False
         self.incident_bad_deploy = False
+        self.last_remediation = {}  # action_key -> timestamp
+
+    def remediation_on_cooldown(self, action_key, cooldown_seconds=90):
+        import time
+        last = self.last_remediation.get(action_key)
+        if last is None:
+            return False, 0
+        elapsed = time.time() - last
+        if elapsed < cooldown_seconds:
+            return True, round(cooldown_seconds - elapsed)
+        return False, 0
+
+    def mark_remediated(self, action_key):
+        import time
+        self.last_remediation[action_key] = time.time()
 
     def snapshot(self):
         with self.lock:

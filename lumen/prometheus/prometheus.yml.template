@@ -2,22 +2,35 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
+  # For LOCAL development (app.py running on your machine):
   - job_name: 'lumen-encoding'
+    metrics_path: '/encoding/metrics'
     static_configs:
-      - targets: ['host.docker.internal:9101']
+      - targets: ['host.docker.internal:9100']
   - job_name: 'lumen-playback'
+    metrics_path: '/playback/metrics'
     static_configs:
-      - targets: ['host.docker.internal:9102']
+      - targets: ['host.docker.internal:9100']
   - job_name: 'lumen-ingest'
+    metrics_path: '/ingest/metrics'
     static_configs:
-      - targets: ['host.docker.internal:9103']
+      - targets: ['host.docker.internal:9100']
   - job_name: 'lumen-recommendation'
+    metrics_path: '/recommendation/metrics'
     static_configs:
-      - targets: ['host.docker.internal:9104']
+      - targets: ['host.docker.internal:9100']
+
+  # Once deployed to Cloud Run, comment out the 4 blocks above and use
+  # these instead, pointing at your real Cloud Run URL (no https://,
+  # scheme is set separately):
+  # - job_name: 'lumen-encoding'
+  #   metrics_path: '/encoding/metrics'
+  #   scheme: https
+  #   static_configs:
+  #     - targets: ['your-lumen-service-xxxxx.a.run.app']
+  # (repeat for playback, ingest, recommendation with their paths)
 
 remote_write:
-  # Get these three values from Grafana Cloud Portal -> your stack ->
-  # Prometheus card -> "Send Metrics" / Details.
   - url: https://REPLACE_WITH_YOUR_PROMETHEUS_REMOTE_WRITE_URL/api/prom/push
     basic_auth:
       username: REPLACE_WITH_YOUR_PROMETHEUS_INSTANCE_ID
