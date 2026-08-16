@@ -58,7 +58,27 @@ def _metric_value(registry, name, label_key=None, label_value=None, default=0):
     return default
 
 
-# --- Rate-based health tracking (server-side) ---
+# --- Trend tracking (direction, not just current value) ---
+# Complements the rate tracking above: lets Continuity distinguish
+# "recovering" (value dropping) from "stuck" (flat) from "getting worse"
+# (still climbing) across consecutive triage checks, instead of only
+# seeing a binary healthy/unhealthy snapshot each time.
+_prev_values = {}
+
+
+def _trend(key, current_value, flat_tolerance=0.05):
+    prev = _prev_values.get(key)
+    _prev_values[key] = current_value
+    if prev is None:
+        return "unknown"
+    if prev == 0:
+        return "stable" if current_value == 0 else "worsening"
+    change_ratio = (current_value - prev) / max(abs(prev), 1)
+    if change_ratio < -flat_tolerance:
+        return "recovering"
+    elif change_ratio > flat_tolerance:
+        return "worsening"
+    return "stuck"
 # Cumulative counters only ever go up, so comparing raw totals against a
 # threshold makes "healthy" flicker forever after a single past incident,
 # and is noisy from Lumen's normal small baseline error rate. Instead we
@@ -117,6 +137,13 @@ def dashboard_status():
     playback_healthy = playback_rate < 1.0
     recommendation_healthy = recommendation_rate < 1.0
 
+    # Trend: direction of change since the last time this endpoint was
+    # called, so a caller can tell "actively recovering" apart from
+    # "stuck" or "actively getting worse" instead of just a snapshot.
+    encoding_queue_trend = _trend("encoding_queue", encoding_queue)
+    playback_trend = _trend("playback_rate", playback_rate)
+    recommendation_trend = _trend("recommendation_rate", recommendation_rate)
+
     return jsonify({
         "incidents": s,
         "services": {
@@ -125,16 +152,19 @@ def dashboard_status():
                 "healthy": encoding_healthy,
                 "worker_pool_size": encoding_workers,
                 "queue_depth": encoding_queue,
+                "queue_trend": encoding_queue_trend,
             },
             "playback": {
                 "healthy": playback_healthy,
                 "errors_5xx_new_per_sec": round(playback_rate, 3),
                 "errors_5xx_lifetime": playback_5xx_total,
+                "error_rate_trend": playback_trend,
             },
             "recommendation": {
                 "healthy": recommendation_healthy,
                 "errors_5xx_new_per_sec": round(recommendation_rate, 3),
                 "errors_5xx_lifetime": recommendation_5xx_total,
+                "error_rate_trend": recommendation_trend,
             },
         },
     })
