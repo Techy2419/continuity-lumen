@@ -8,8 +8,10 @@ from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnecti
 grafana = MCPToolset(
     connection_params=StreamableHTTPConnectionParams(
         url="https://grafana-mcp-228250356285.us-central1.run.app/mcp",
+        audience="https://grafana-mcp-228250356285.us-central1.run.app"
     )
 )
+
 
 LUMEN_CONTROL_URL = "https://lumen-228250356285.us-central1.run.app"
 
