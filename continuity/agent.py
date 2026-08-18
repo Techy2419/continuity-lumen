@@ -8,10 +8,8 @@ from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnecti
 grafana = MCPToolset(
     connection_params=StreamableHTTPConnectionParams(
         url="https://grafana-mcp-228250356285.us-central1.run.app/mcp",
-        audience="https://grafana-mcp-228250356285.us-central1.run.app"
     )
 )
-
 
 LUMEN_CONTROL_URL = "https://lumen-228250356285.us-central1.run.app"
 
@@ -143,6 +141,17 @@ Follow this operational cycle:
    pool has dropped below its healthy level (12). Use restart_service for
    a degraded service that isn't a worker-capacity issue. Use
    rollback_deploy when logs indicate a recent bad deployment.
+
+   CRITICAL: Once a remediation tool call succeeds (returns a normal
+   response, not "cooldown_active"), treat that fix as APPLIED. Do NOT
+   call the same remediation tool for the same target again later in this
+   same investigation -- not even after other unrelated tool calls (log
+   queries, incident lookups, dashboard searches) happen in between. A
+   successful call means the fix is done; it does not need to be
+   reconfirmed by repeating it. Only call it again if you have queried
+   get_lumen_triage_snapshot(), waited, and have concrete evidence the
+   trend is "stuck" or "worsening" -- never as a reflex or as a "just to
+   be safe" repeat.
 
 5. VERIFY
    Call get_lumen_triage_snapshot() again to confirm recovery. This is
