@@ -1,7 +1,9 @@
 import os
-
 import time
+import threading
+import uuid
 
+import requests
 from flask import Flask, request, jsonify, Response
 from prometheus_client import generate_latest
 
@@ -12,6 +14,47 @@ from state import state
 from loki_client import push_log
 
 app = Flask(__name__)
+
+
+def _invoke_continuity_async(incident_name):
+    """Fire-and-forget: ask Continuity to investigate, in the background.
+
+    This is what makes Continuity genuinely event-driven rather than
+    something a human has to remember to prompt -- it runs whether or
+    not anyone has the dashboard open, e.g. via a plain curl trigger.
+    """
+    if not config.CONTINUITY_URL:
+        return  # not configured (e.g. local dev without Continuity running)
+
+    def _run():
+        session_id = f"auto-{uuid.uuid4().hex[:10]}"
+        base = config.CONTINUITY_URL.rstrip("/")
+        try:
+            requests.post(
+                f"{base}/apps/{config.CONTINUITY_APP_NAME}/users/lumen-auto/sessions/{session_id}",
+                json={},
+                timeout=15,
+            )
+            requests.post(
+                f"{base}/run",
+                json={
+                    "app_name": config.CONTINUITY_APP_NAME,
+                    "user_id": "lumen-auto",
+                    "session_id": session_id,
+                    "new_message": {
+                        "role": "user",
+                        "parts": [{
+                            "text": f"An incident was just detected ({incident_name}). "
+                                    "Check Lumen's health and resolve any issues you find."
+                        }],
+                    },
+                },
+                timeout=120,
+            )
+        except Exception as e:
+            push_log("control", "error", f"Autonomous Continuity invocation failed: {e}")
+
+    threading.Thread(target=_run, daemon=True).start()
 
 
 @app.after_request
@@ -248,6 +291,7 @@ def trigger():
             return jsonify({"error": "unknown incident", "valid": [
                 "encoding_crash", "latency_spike", "bad_deploy"]}), 400
     push_log("control", "warn", f"Incident triggered: {name}")
+    _invoke_continuity_async(name)
     return jsonify(state.snapshot())
 
 

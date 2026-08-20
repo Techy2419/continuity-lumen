@@ -1008,7 +1008,7 @@ function addMessage(who, text) {
   `;
 
 
-  div.querySelector(".bubble").textContent = text;
+  div.querySelector(".bubble").innerHTML = who === "agent" ? renderMarkdown(text) : text;
 
   chatLog.appendChild(div);
 
@@ -1046,22 +1046,23 @@ function createStreamingBubble() {
   scrollChat();
 
 
-  return {
+  let accumulatedText = "";
 
-    el: div,
+return {
+  el: div,
 
-    bubble: div.querySelector(".bubble"),
+  bubble: div.querySelector(".bubble"),
 
-    appendText(text) {
-      this.bubble.textContent += text;
-      scrollChat();
-    },
+  appendText(text) {
+    accumulatedText += text;
+    this.bubble.innerHTML = renderMarkdown(accumulatedText);
+    scrollChat();
+  },
 
-    finalize() {
-      this.el.classList.remove("streaming");
-    },
-
-  };
+  finalize() {
+    this.el.classList.remove("streaming");
+  },
+};
 }
 
 
