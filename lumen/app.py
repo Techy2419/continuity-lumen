@@ -67,18 +67,26 @@ _prev_values = {}
 
 
 def _trend(key, current_value, flat_tolerance=0.05):
+    """Returns (trend_label, per_second_rate_of_change)."""
+    now = time.time()
     prev = _prev_values.get(key)
-    _prev_values[key] = current_value
+    _prev_values[key] = (current_value, now)
     if prev is None:
-        return "unknown"
-    if prev == 0:
-        return "stable" if current_value == 0 else "worsening"
-    change_ratio = (current_value - prev) / max(abs(prev), 1)
-    if change_ratio < -flat_tolerance:
-        return "recovering"
-    elif change_ratio > flat_tolerance:
-        return "worsening"
-    return "stuck"
+        return "unknown", 0.0
+    prev_value, prev_time = prev
+    dt = now - prev_time
+    per_sec_rate = (current_value - prev_value) / dt if dt > 0 else 0.0
+    if prev_value == 0:
+        label = "stable" if current_value == 0 else "worsening"
+    else:
+        change_ratio = (current_value - prev_value) / max(abs(prev_value), 1)
+        if change_ratio < -flat_tolerance:
+            label = "recovering"
+        elif change_ratio > flat_tolerance:
+            label = "worsening"
+        else:
+            label = "stuck"
+    return label, per_sec_rate
 # Cumulative counters only ever go up, so comparing raw totals against a
 # threshold makes "healthy" flicker forever after a single past incident,
 # and is noisy from Lumen's normal small baseline error rate. Instead we
@@ -140,12 +148,66 @@ def dashboard_status():
     # Trend: direction of change since the last time this endpoint was
     # called, so a caller can tell "actively recovering" apart from
     # "stuck" or "actively getting worse" instead of just a snapshot.
-    encoding_queue_trend = _trend("encoding_queue", encoding_queue)
-    playback_trend = _trend("playback_rate", playback_rate)
-    recommendation_trend = _trend("recommendation_rate", recommendation_rate)
+    encoding_queue_trend, encoding_queue_rate = _trend("encoding_queue", encoding_queue)
+    playback_trend, _ = _trend("playback_rate", playback_rate)
+    recommendation_trend, _ = _trend("recommendation_rate", recommendation_rate)
+
+    # --- Media Impact: translate raw infrastructure health into the
+    # consequence a studio crew or the audience would actually feel.
+    # Deterministic arithmetic only -- no LLM guessing, no invented
+    # confidence numbers. If it can't be computed from real data, it
+    # isn't reported.
+    media_impact = {
+        "production": {
+            "name": state.production_name,
+            "workflow": state.production_workflow,
+            "priority": state.production_priority,
+        }
+    }
+
+    if state.incident_started_at is not None and encoding_queue > 0:
+        elapsed_sec = time.time() - state.incident_started_at
+        sla_sec = state.production_sla_minutes * 60
+        remaining_sec = max(0, sla_sec - elapsed_sec)
+
+        eta_sec = None
+        if encoding_queue_rate < -0.01:  # genuinely draining
+            eta_sec = encoding_queue / abs(encoding_queue_rate)
+
+        if eta_sec is None:
+            risk = "HIGH"
+            reason = "queue not currently draining"
+        elif eta_sec > remaining_sec:
+            risk = "HIGH"
+            reason = f"draining too slowly to clear before the {state.production_sla_minutes}min delivery window"
+        elif eta_sec > remaining_sec * 0.5:
+            risk = "MODERATE"
+            reason = "draining, but delivery window is getting tight"
+        else:
+            risk = "LOW"
+            reason = "draining fast enough to clear well within the delivery window"
+
+        media_impact["production_risk"] = {
+            "level": risk,
+            "reason": reason,
+            "assets_pending": round(encoding_queue),
+            "delivery_window_remaining_sec": round(remaining_sec),
+            "estimated_drain_time_sec": round(eta_sec) if eta_sec is not None else None,
+        }
+    else:
+        media_impact["production_risk"] = {"level": "NONE", "assets_pending": 0}
+
+    if not playback_healthy:
+        media_impact["audience_impact"] = {
+            "level": "HIGH",
+            "reason": "viewers currently experiencing playback errors",
+        }
+    else:
+        media_impact["audience_impact"] = {"level": "NONE"}
 
     return jsonify({
         "incidents": s,
+        "media_impact": media_impact,
         "services": {
             "ingestion": {"healthy": True, "queue_depth": ingest_queue},
             "encoding": {
@@ -176,6 +238,8 @@ def trigger():
     with state.lock:
         if name == "encoding_crash":
             state.incident_encoding_crash = True
+            if state.incident_started_at is None:
+                state.incident_started_at = time.time()
         elif name == "latency_spike":
             state.incident_latency_spike = True
         elif name == "bad_deploy":
@@ -193,6 +257,7 @@ def clear():
         state.incident_encoding_crash = False
         state.incident_latency_spike = False
         state.incident_bad_deploy = False
+        state.incident_started_at = None
     push_log("control", "info", "All incidents cleared")
     return jsonify(state.snapshot())
 
@@ -214,6 +279,7 @@ def scale_workers():
         state.worker_pool_target = n
         if n >= 10:
             state.incident_encoding_crash = False
+            state.incident_started_at = None
     state.mark_remediated("scale_workers")
     push_log("control", "info", f"Agent scaled encoding workers to {n}")
     return jsonify(state.snapshot())

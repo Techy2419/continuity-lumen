@@ -15,6 +15,14 @@ class LumenState:
         self.incident_latency_spike = False
         self.incident_bad_deploy = False
         self.last_remediation = {}  # action_key -> timestamp
+        self.incident_started_at = None  # set when encoding_crash begins
+
+        # Lightweight media-production context, used to translate raw
+        # infrastructure health into studio/fan-facing impact language.
+        self.production_name = "Lumen Feature Film"
+        self.production_workflow = "Final Delivery"
+        self.production_priority = "critical"
+        self.production_sla_minutes = 30
 
     def remediation_on_cooldown(self, action_key, cooldown_seconds=90):
         import time
